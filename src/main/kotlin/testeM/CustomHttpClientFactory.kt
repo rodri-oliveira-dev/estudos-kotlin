@@ -9,21 +9,16 @@ micronaut:
       nThreads: 75
       mdc: true
 
+import io.micronaut.context.annotation.Factory
+import io.micronaut.http.client.HttpClient
+import io.micronaut.http.client.annotation.Client
+import javax.inject.Singleton
 
-import io.micronaut.scheduling.instrument.InvocationInstrumenter
-import io.micronaut.scheduling.instrument.ReactiveInvocationInstrumenterFactory
+@Factory
+class HttpClientFactory {
 
-//...
-
-class MdcReactiveInvocationInstrumenterFactory : ReactiveInvocationInstrumenterFactory {
-    override fun newReactiveInvocationInstrumenter(): Optional<InvocationInstrumenter> {
-        val mdcContextMap = MDC.getCopyOfContextMap()
-        return if (mdcContextMap != null) {
-            Optional.of(InvocationInstrumenter {
-                MDC.setContextMap(mdcContextMap)
-            })
-        } else {
-            Optional.empty()
-        }
+    @Singleton
+    fun httpClient(@Client("https://example.com") baseUrl: String): HttpClient {
+        return HttpClient.create(baseUrl)
     }
 }
