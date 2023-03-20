@@ -1,33 +1,29 @@
-import io.micronaut.context.annotation.Factory
-import io.micronaut.http.client.HttpClientConfiguration
-import io.micronaut.http.client.HttpClientFactory
-import io.micronaut.http.client.HttpClientOptions
-import io.micronaut.runtime.ApplicationConfiguration
-import io.micronaut.tracing.brave.instrument.http.TraceHttpClient
-import io.opentracing.Tracer
-import javax.inject.Singleton
+implementation("org.slf4j:slf4j-api:1.7.32")
+implementation("org.slf4j:log4j-over-slf4j:1.7.32")
 
-@Factory
-class CustomHttpClientFactory(
-    private val applicationConfiguration: ApplicationConfiguration,
-    private val httpClientConfiguration: HttpClientConfiguration,
-    private val tracer: Tracer
-) {
 
-    @Singleton
-    fun customHttpClient(
-        @Named("custom") httpClientOptions: HttpClientOptions
-    ): HttpClient {
-        val traceHttpClient = TraceHttpClient(httpClientOptions, tracer)
-        return HttpClientFactory.create(traceHttpClient, applicationConfiguration, httpClientConfiguration)
-    }
+micronaut:
+  executors:
+    io:
+      type: fixed
+      nThreads: 75
+      mdc: true
 
-    @Named("custom")
-    @Singleton
-    fun customHttpClientOptions(): HttpClientOptions {
-        return HttpClientOptions()
-            .apply {
-                propagation = TracingHttpClientPropagationThreadLocal.PROPERTY_NAME
-            }
+
+import io.micronaut.scheduling.instrument.InvocationInstrumenter
+import io.micronaut.scheduling.instrument.ReactiveInvocationInstrumenterFactory
+
+//...
+
+class MdcReactiveInvocationInstrumenterFactory : ReactiveInvocationInstrumenterFactory {
+    override fun newReactiveInvocationInstrumenter(): Optional<InvocationInstrumenter> {
+        val mdcContextMap = MDC.getCopyOfContextMap()
+        return if (mdcContextMap != null) {
+            Optional.of(InvocationInstrumenter {
+                MDC.setContextMap(mdcContextMap)
+            })
+        } else {
+            Optional.empty()
+        }
     }
 }
