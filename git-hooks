@@ -1,0 +1,33 @@
+#!/bin/sh
+# pre-commit
+
+# Executa o Gradle task para formatar o código Kotlin
+./gradlew ktlintFormat
+
+# Verifica se há erros de formatação no código Kotlin
+OUTPUT="$(./gradlew ktlintCheck 2>&1)"
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "Erro: Encontrados erros de formatação no código Kotlin:"
+  echo "$OUTPUT"
+  exit 1
+fi
+
+# Adiciona os arquivos formatados ao commit atual
+git add $(git diff --name-only --cached)
+
+
+#!/bin/sh
+#post-checkout
+branch_pattern="^feature/"
+
+if [ "$3" == "1" ]; then
+  current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
+  if ! [[ $current_branch =~ $branch_pattern ]]; then
+    echo "Erro: A branch deve começar com 'feature/'."
+    exit 1
+  fi
+fi
+
+exit 0
