@@ -10,6 +10,10 @@ $(".table")
 
       $(e).html(thText + "<br>" + tdText);
     } else {
-      $(e).remove(); // Remove a coluna da tabela
+      $(".table").find("td:nth-child(" + (i+1) + ")").each(function() {
+        var thIndex = $(this).index() - 1;
+        $(".table").find("th").eq(thIndex).remove();
+        $(this).remove();
+      });
     }
   });
