@@ -1,12 +1,15 @@
-#!/bin/bash
+var today = new Date();
+var targetDay = today.getDate() + 2; // Adiciona dois dias à data atual
 
-branch_pattern="^feature/"
+$(".table")
+  .find("th")
+  .each(function (i, e) {
+    if (i > targetDay) {
+      var thText = $(e).find("abbr").text();
+      var tdText = $(".table").find("tfoot td").eq(i).text();
 
-current_branch=$(git symbolic-ref --short HEAD)
-
-if [[ $current_branch =~ $branch_pattern ]]; then
-    exit 0
-else
-    echo "Erro: O nome da branch deve começar com 'feature/'."
-    exit 1
-fi
+      $(e).html(thText + "<br>" + tdText);
+    } else {
+      $(e).remove(); // Remove a coluna da tabela
+    }
+  });
