@@ -31,3 +31,18 @@ if [ "$3" == "1" ]; then
 fi
 
 exit 0
+
+
+#!/bin/bash
+
+branch_pattern="^feature/"
+
+while read local_ref local_sha1 remote_ref remote_sha1
+do
+    if [[ $remote_ref =~ $branch_pattern ]]; then
+        echo "Erro: O nome da branch deve começar com 'feature/'."
+        exit 1
+    fi
+done
+
+exit 0
