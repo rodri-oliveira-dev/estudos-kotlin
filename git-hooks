@@ -1,19 +1,33 @@
-var today = new Date();
-var targetDay = today.getDate() + 2; // Adiciona dois dias à data atual
+import json
+import glob
 
-$(".table")
-  .find("th")
-  .each(function (i, e) {
-    if (i > targetDay) {
-      var thText = $(e).find("abbr").text();
-      var tdText = $(".table").find("tfoot td").eq(i).text();
+# Definir as pastas que serão percorridas
+DEV = {"ambiente": "998761750547", "caminho": "C:\\Users\\ogirdor\\projetos\\roles\\itau-ip5-infra-loyaltyitaushop-piperoles\\dev\\policy\\"}
+HOMOL = {"ambiente": "241768922157", "caminho": "C:\\Users\\ogirdor\\projetos\\roles\\itau-ip5-infra-loyaltyitaushop-piperoles\\homolog\\policy\\"}
+PROD = {"ambiente": "846159895675", "caminho": "C:\\Users\\ogirdor\\projetos\\roles\\itau-ip5-infra-loyaltyitaushop-piperoles\\prod\\policy\\"}
 
-      $(e).html(thText + "<br>" + tdText);
-    } else if (i <= targetDay) {
-      $(".table").find("td:nth-child(" + (i+1) + ")").each(function() {
-        var thIndex = $(this).index() - 1;
-        $(".table").find("th").eq(thIndex).remove();
-        $(this).remove();
-      });
-    }
-  });
+PARAMETRO_CHAVE = "Statement"
+
+def validar():
+    for ambiente in [DEV, HOMOL, PROD]:
+        for arquivo in glob.glob(ambiente["caminho"] + "*.json"):
+            with open(arquivo, "r") as f:
+                data = json.load(f)
+                if PARAMETRO_CHAVE in data:
+                    for key in data[PARAMETRO_CHAVE]:
+                        resources = key.get("Resource", None)
+                        if resources:
+                            if isinstance(resources, list):
+                                for resource in resources:
+                                    valida_resource(resource, arquivo, ambiente)
+                            else:
+                                valida_resource(resources, arquivo, ambiente)
+
+def valida_resource(resource, arquivo, ambiente):
+    if resource == "*" or resource.split(':')[4] == ambiente["ambiente"]:
+        pass
+    else:
+        print(f"{arquivo} -> resource:{resource} inválido para o ambiente {ambiente['ambiente']}")
+
+if __name__ == '__main__':
+    validar()
