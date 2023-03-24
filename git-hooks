@@ -1,33 +1,25 @@
-import json
-import glob
+lista1 = [{"chave1":"teste1"},{"chave1":"teste1"},{"chave2":"teste1"}]
+lista2 = [{"chave1":"teste2"},{"chave1":"teste2"},{"chave2":"teste2"}]
+lista3 = [{"chave1":"teste3"},{"chave2":"teste3"},{"chave3":"teste3"}]
 
-# Definir as pastas que serão percorridas
-DEV = {"ambiente": "998761750547", "caminho": "C:\\Users\\ogirdor\\projetos\\roles\\itau-ip5-infra-loyaltyitaushop-piperoles\\dev\\policy\\"}
-HOMOL = {"ambiente": "241768922157", "caminho": "C:\\Users\\ogirdor\\projetos\\roles\\itau-ip5-infra-loyaltyitaushop-piperoles\\homolog\\policy\\"}
-PROD = {"ambiente": "846159895675", "caminho": "C:\\Users\\ogirdor\\projetos\\roles\\itau-ip5-infra-loyaltyitaushop-piperoles\\prod\\policy\\"}
+# Extrair as chaves únicas de cada lista
+chaves1 = set().union(*lista1)
+chaves2 = set().union(*lista2)
+chaves3 = set().union(*lista3)
 
-PARAMETRO_CHAVE = "Statement"
-
-def validar():
-    for ambiente in [DEV, HOMOL, PROD]:
-        for arquivo in glob.glob(ambiente["caminho"] + "*.json"):
-            with open(arquivo, "r") as f:
-                data = json.load(f)
-                if PARAMETRO_CHAVE in data:
-                    for key in data[PARAMETRO_CHAVE]:
-                        resources = key.get("Resource", None)
-                        if resources:
-                            if isinstance(resources, list):
-                                for resource in resources:
-                                    valida_resource(resource, arquivo, ambiente)
-                            else:
-                                valida_resource(resources, arquivo, ambiente)
-
-def valida_resource(resource, arquivo, ambiente):
-    if resource == "*" or resource.split(':')[4] == ambiente["ambiente"]:
-        pass
-    else:
-        print(f"{arquivo} -> resource:{resource} inválido para o ambiente {ambiente['ambiente']}")
-
-if __name__ == '__main__':
-    validar()
+# Comparar as três listas de chaves
+if chaves1 == chaves2 == chaves3:
+    print("Todas as listas têm as mesmas chaves!")
+else:
+    # Identificar as chaves ausentes em cada lista
+    ausentes1 = chaves2 - chaves1 - chaves3
+    ausentes2 = chaves1 - chaves2 - chaves3
+    ausentes3 = chaves1 - chaves3 - chaves2
+    
+    # Imprimir as chaves ausentes em cada lista
+    if ausentes1:
+        print("Chaves ausentes na lista 1:", ausentes1)
+    if ausentes2:
+        print("Chaves ausentes na lista 2:", ausentes2)
+    if ausentes3:
+        print("Chaves ausentes na lista 3:", ausentes3)
