@@ -1,25 +1,5 @@
-lista1 = [{"chave1":"teste1"},{"chave1":"teste1"},{"chave2":"teste1"}]
-lista2 = [{"chave1":"teste2"},{"chave1":"teste2"},{"chave2":"teste2"}]
-lista3 = [{"chave1":"teste3"},{"chave2":"teste3"},{"chave3":"teste3"}]
+lista1 = [{"chave1":"teste1"},{"chasve1":"teste1"},{"sschave2":"teste1"}]
 
-# Extrair as chaves únicas de cada lista
-chaves1 = set().union(*lista1)
-chaves2 = set().union(*lista2)
-chaves3 = set().union(*lista3)
+valores = [valor for d in lista1 for valor in d.values() if (valor.startswith("ch") or valor.startswith("chs")) and ("tes" not in valor and "sas" not in valor)]
 
-# Comparar as três listas de chaves
-if chaves1 == chaves2 == chaves3:
-    print("Todas as listas têm as mesmas chaves!")
-else:
-    # Identificar as chaves ausentes em cada lista
-    ausentes1 = chaves2 - chaves1 - chaves3
-    ausentes2 = chaves1 - chaves2 - chaves3
-    ausentes3 = chaves1 - chaves3 - chaves2
-    
-    # Imprimir as chaves ausentes em cada lista
-    if ausentes1:
-        print("Chaves ausentes na lista 1:", ausentes1)
-    if ausentes2:
-        print("Chaves ausentes na lista 2:", ausentes2)
-    if ausentes3:
-        print("Chaves ausentes na lista 3:", ausentes3)
+print(valores)
