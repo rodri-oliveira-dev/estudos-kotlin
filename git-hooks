@@ -1,5 +1,38 @@
-lista1 = [{"chave1":"teste1"},{"chasve1":"teste1"},{"sschave2":"teste1"}]
+import re
+from urllib.parse import urlparse
+import requests
+from ping3 import ping, exceptions
 
-valores = [valor for d in lista1 for valor in d.values() if (valor.startswith("ch") or valor.startswith("chs")) and ("tes" not in valor and "sas" not in valor)]
 
-print(valores)
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
+
+
+def ping_url(url):
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return True
+    except requests.exceptions.RequestException:
+        return False
+
+
+def main():
+    text = input("Digite o texto: ")
+
+    if is_valid_url(text):
+        print("A URL é válida.")
+        if ping_url(text):
+            print("Ping bem-sucedido!")
+        else:
+            print("Ping falhou. A URL pode estar inacessível ou o servidor não está respondendo.")
+    else:
+        print("O texto não é uma URL válida.")
+
+
+if __name__ == "__main__":
+    main()
