@@ -1,38 +1,20 @@
-import re
-from urllib.parse import urlparse
-import requests
-from ping3 import ping, exceptions
+import subprocess
 
+def check_url(url):
+    # Executa o comando de ping usando o sistema operacional
+    ping = subprocess.Popen(["ping", "-c", "4", url], stdout=subprocess.PIPE)
 
-def is_valid_url(url):
-    try:
-        result = urlparse(url)
-        return all([result.scheme, result.netloc])
-    except ValueError:
-        return False
-
-
-def ping_url(url):
-    try:
-        response = requests.get(url, timeout=5)
-        if response.status_code == 200:
-            return True
-    except requests.exceptions.RequestException:
-        return False
-
-
-def main():
-    text = input("Digite o texto: ")
-
-    if is_valid_url(text):
-        print("A URL é válida.")
-        if ping_url(text):
-            print("Ping bem-sucedido!")
-        else:
-            print("Ping falhou. A URL pode estar inacessível ou o servidor não está respondendo.")
+    # Analisa a saída do ping e verifica se o host respondeu
+    output = ping.communicate()[0]
+    output = output.decode("utf-8")
+    if "64 bytes from" in output:
+        return True
     else:
-        print("O texto não é uma URL válida.")
+        return False
 
-
-if __name__ == "__main__":
-    main()
+# Exemplo de uso:
+url = "exemplo.com"
+if check_url(url):
+    print(f"A URL {url} respondeu!")
+else:
+    print(f"A URL {url} não respondeu.")
