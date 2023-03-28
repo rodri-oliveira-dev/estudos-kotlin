@@ -1,3 +1,9 @@
 index=<nomedoindice> (message="Teste 1*" OR message="Teste 34*" OR message="Erra*") 
-| eval data=strftime(_time,"%Y-%m-%d") 
-| stats count by data, message
+| eval data=strftime(_time,"%Y-%m-%d")
+| eval nova_mensagem = case(
+    match(message, "^Teste 1"), "a1",
+    match(message, "^Teste 34"), "A2",
+    match(message, "^Erra"), "Erro",
+    true(), message
+  )
+| stats count by data, nova_mensagem
