@@ -1,20 +1,3 @@
-import subprocess
-
-def check_url(url):
-    # Executa o comando de ping usando o sistema operacional
-    ping = subprocess.Popen(["ping", "-c", "4", url], stdout=subprocess.PIPE)
-
-    # Analisa a saída do ping e verifica se o host respondeu
-    output = ping.communicate()[0]
-    output = output.decode("utf-8")
-    if "64 bytes from" in output:
-        return True
-    else:
-        return False
-
-# Exemplo de uso:
-url = "exemplo.com"
-if check_url(url):
-    print(f"A URL {url} respondeu!")
-else:
-    print(f"A URL {url} não respondeu.")
+index=<nomedoindice> (message="Teste 1*" OR message="Teste 34*" OR message="Erra*") 
+| eval data=strftime(_time,"%Y-%m-%d") 
+| stats count by data, message
