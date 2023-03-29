@@ -17,3 +17,30 @@ micronaut:
       my-http-client:
         url: https://example.com
         read-timeout: 5s
+
+
+
+
+#!/bin/bash
+
+# listar as tasks em execução que correspondem ao filtro de imagem
+task_arn=$(aws ecs list-tasks --cluster fargate1 --desired-status RUNNING --query "taskArns[?contains(containers[?image==\`*vendortoken*\`].image, \`vendortoken\`)]" --output text | awk 'NR==1{print $1}')
+
+if [ -z "$task_arn" ]; then
+  echo "Nenhuma tarefa encontrada."
+  exit 1
+fi
+
+# obter o ID da task a partir da ARN
+task_id=$(echo $task_arn | cut -d/ -f2)
+
+# obter o nome do primeiro contêiner que corresponde ao filtro de imagem
+container_name=$(aws ecs describe-tasks --cluster fargate1 --tasks $task_arn --query 'tasks[].containers[?contains(image, `vendortoken`) == `true`].name' --output text)
+
+if [ -z "$container_name" ]; then
+  echo "Nenhum contêiner encontrado."
+  exit 1
+fi
+
+# conectar ao contêiner usando o comando execute-command
+aws ecs execute-command --cluster fargate1 --task $task_id --container $container_name --interactive --command "/bin/sh"
