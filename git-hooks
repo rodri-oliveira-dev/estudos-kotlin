@@ -1,1 +1,3 @@
-index=<nome_do_index> | eval body=substr(message, ifnull(strstr(message, "body:"), 0) + 5)
+index=<nome_do_index> context.x-request-id IN (*1*, *2*, *3*) message="Teste*" 
+| rex field=message "body:(?<substring>.*)" 
+| eval novo_campo=substr(substring, 1)
