@@ -1,3 +1,19 @@
-index=<nome_do_index> context.x-request-id IN (*1*, *2*, *3*) message="Teste*" 
-| rex field=message "body:(?<substring>.*)" 
-| eval novo_campo=substr(substring, 1)
+Assunto: Solicitação de ajuda na análise de erros identificados no uso da API
+
+Prezado(a) [Nome do Suporte],
+
+Espero que este e-mail o(a) encontre bem. Meu nome é [Seu Nome] e sou desenvolvedor(a) da empresa [Nome da Empresa]. Estamos atualmente utilizando a API [Nome da API] em nosso projeto, e recentemente identificamos alguns erros durante o processo de integração. Gostaríamos de solicitar sua ajuda e orientação na análise e resolução desses problemas.
+
+Para facilitar a compreensão e diagnóstico das falhas, estamos enviando em anexo a este e-mail os logs e detalhes dos erros encontrados, além de exemplos das chamadas realizadas à API e as respostas recebidas. Acreditamos que essas informações possam ser úteis na identificação das causas dos problemas enfrentados.
+
+Também gostaríamos de ressaltar que já consultamos a documentação da API e tentamos seguir todas as recomendações e melhores práticas disponíveis. Entretanto, não conseguimos solucionar os erros por conta própria e, por isso, decidimos entrar em contato com a equipe de suporte.
+
+Agradecemos antecipadamente pela sua atenção e apoio. Estamos à disposição para fornecer informações adicionais, caso sejam necessárias. Ficaríamos gratos se pudesse nos fornecer uma estimativa de tempo para análise e retorno sobre o assunto.
+
+Atenciosamente,
+
+[Seu Nome]
+[Seu Cargo]
+[Nome da Empresa]
+[Endereço de E-mail]
+[Telefone para Contato]
