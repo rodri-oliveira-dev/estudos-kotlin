@@ -1,19 +1,136 @@
-Assunto: Solicitação de ajuda na análise de erros identificados no uso da API
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.springframework.http.HttpStatus
+import java.util.UUID
 
-Prezado(a) [Nome do Suporte],
+class ResgateServiceTest {
+    private lateinit var externalResource: ExternalResource
+    private lateinit var resgateProvider: ResgateProvider
+    private lateinit var obterAutorizacaoRequestMapper: ObterAutorizacaoRequestMapper
+    private lateinit var obterAutorizacaoResponseMapper: ObterAutorizacaoResponseMapper
+    private lateinit var confirmacaoResgateRequestMapper: ConfirmacaoResgateRequestMapper
+    private lateinit var confirmacaoResgateResponseMapper: ConfirmacaoResgateResponseMapper
+    private lateinit var awsSecrets: AwsSecrets
+    private lateinit var resgateConfiguration: ResgateConfiguration
+    private lateinit var resgateService: ResgateService
 
-Espero que este e-mail o(a) encontre bem. Meu nome é [Seu Nome] e sou desenvolvedor(a) da empresa [Nome da Empresa]. Estamos atualmente utilizando a API [Nome da API] em nosso projeto, e recentemente identificamos alguns erros durante o processo de integração. Gostaríamos de solicitar sua ajuda e orientação na análise e resolução desses problemas.
+    @BeforeEach
+    fun setUp() {
+        externalResource = mockk(relaxed = true)
+        resgateProvider = mockk()
+        obterAutorizacaoRequestMapper = mockk()
+        obterAutorizacaoResponseMapper = mockk()
+        confirmacaoResgateRequestMapper = mockk()
+        confirmacaoResgateResponseMapper = mockk()
+        awsSecrets = mockk()
+        resgateConfiguration = mockk()
 
-Para facilitar a compreensão e diagnóstico das falhas, estamos enviando em anexo a este e-mail os logs e detalhes dos erros encontrados, além de exemplos das chamadas realizadas à API e as respostas recebidas. Acreditamos que essas informações possam ser úteis na identificação das causas dos problemas enfrentados.
+        resgateService = ResgateService(
+            externalResource,
+            resgateProvider,
+            obterAutorizacaoRequestMapper,
+            obterAutorizacaoResponseMapper,
+            confirmacaoResgateRequestMapper,
+            confirmacaoResgateResponseMapper,
+            awsSecrets,
+            resgateConfiguration
+        )
+    }
 
-Também gostaríamos de ressaltar que já consultamos a documentação da API e tentamos seguir todas as recomendações e melhores práticas disponíveis. Entretanto, não conseguimos solucionar os erros por conta própria e, por isso, decidimos entrar em contato com a equipe de suporte.
+    @Test
+    fun `deve autorizar com sucesso`() {
+        // Arrange
+        val participante = Participante(/* preencha com os dados necessários */)
+        val observabilidade = Observabilidade(UUID.randomUUID().toString(), UUID.randomUUID().toString())
+        val autorizacaoRequest = ObterAutorizacaoRequest(/* preencha com os dados necessários */)
+        val autorizacaoResponse = ObterAutorizacaoResponse(/* preencha com os dados necessários */)
+        val resgate = Resgate(/* preencha com os dados necessários */)
 
-Agradecemos antecipadamente pela sua atenção e apoio. Estamos à disposição para fornecer informações adicionais, caso sejam necessárias. Ficaríamos gratos se pudesse nos fornecer uma estimativa de tempo para análise e retorno sobre o assunto.
+        every { awsSecrets.get().client_id } returns "clientId"
+        every { obterAutorizacaoRequestMapper.from(participante) } returns autorizacaoRequest
+        every { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) } returns autorizacaoResponse
+        every { obterAutorizacaoResponseMapper.from(autorizacaoResponse, participante) } returns resgate
 
-Atenciosamente,
+        // Act
+        val result = resgateService.autorizar(participante, observabilidade)
 
-[Seu Nome]
-[Seu Cargo]
-[Nome da Empresa]
-[Endereço de E-mail]
-[Telefone para Contato]
+        // Assert
+        assertEquals(resgate, result)
+        verify { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `deve lançar BusinessException quando participante não encontrado`() {
+        // Arrange
+        val participante = Participante(/* preencha com os dados necessários */)
+        val observabilidade = Observabilidade(UUID.randomUUID().toString(), UUID.randomUUID().toString())
+        val autorizacaoRequest = ObterAutorizacaoRequest(/* preencha com os dados necessários */)
+        val responseException = HttpClientResponseException(
+            "Participante não encontrado.",
+            HttpResponse.badRequest<Any>().status(HttpStatus.UNPROCESSABLE_ENTITY))
+            
+     every { awsSecrets.get().client_id } returns "clientId"
+    every { obterAutorizacaoRequestMapper.from(participante) } returns autorizacaoRequest
+    every { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) } throws responseException
+
+    // Act & Assert
+    val exception = assertThrows<BusinessException> {
+        resgateService.autorizar(participante, observabilidade)
+    }
+
+    assertEquals(PARTICIPANTE_NAO_ENCONTRADO, exception.code)
+    verify { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) }
+}
+
+@Test
+fun `deve lançar BusinessException quando autorizacao nao processada`() {
+    // Arrange
+    val participante = Participante(/* preencha com os dados necessários */)
+    val observabilidade = Observabilidade(UUID.randomUUID().toString(), UUID.randomUUID().toString())
+    val autorizacaoRequest = ObterAutorizacaoRequest(/* preencha com os dados necessários */)
+    val responseException = HttpClientResponseException(
+        "Falha ao autorizar.",
+        HttpResponse.badRequest<Any>().status(HttpStatus.UNPROCESSABLE_ENTITY)
+    )
+
+    every { awsSecrets.get().client_id } returns "clientId"
+    every { obterAutorizacaoRequestMapper.from(participante) } returns autorizacaoRequest
+    every { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) } throws responseException
+
+    // Act & Assert
+    val exception = assertThrows<BusinessException> {
+        resgateService.autorizar(participante, observabilidade)
+    }
+
+    assertEquals(AUTORIZACAO_NAO_PROCESSADA, exception.code)
+    verify { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) }
+}
+
+@Test
+fun `deve lançar BusinessException quando pedido duplicado`() {
+    // Arrange
+    val participante = Participante(/* preencha com os dados necessários */)
+    val observabilidade = Observabilidade(UUID.randomUUID().toString(), UUID.randomUUID().toString())
+    val autorizacaoRequest = ObterAutorizacaoRequest(/* preencha com os dados necessários */)
+    val responseException = HttpClientResponseException(
+        "Pedido Duplicado.",
+        HttpResponse.badRequest<Any>().status(HttpStatus.CONFLICT)
+    )
+
+    every { awsSecrets.get().client_id } returns "clientId"
+    every { obterAutorizacaoRequestMapper.from(participante) } returns autorizacaoRequest
+    every { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) } throws responseException
+
+    // Act & Assert
+    val exception = assertThrows<BusinessException> {
+        resgateService.autorizar(participante, observabilidade)
+    }
+
+    assertEquals(PEDIDO_DUPLICADO, exception.code)
+    verify { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) }
+}
+            
