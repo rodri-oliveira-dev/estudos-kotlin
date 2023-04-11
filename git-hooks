@@ -1,65 +1,56 @@
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.assertEquals
-import java.time.Instant
+@Test
+fun `execute deve lançar TechnicalException quando controleSolicitacaoRepository obter retorna lista vazia`() {
+    // Arrange
+    val participante = mockk<Participante>(relaxed = true)
+    val observabilidade = mockk<Observabilidade>(relaxed = true)
+    val controleView = mockk<ControleView>(relaxed = true)
 
-class ProcessarSolicitacaoCreditoFaturaUseCaseImplTest {
+    every { controleSolicitacaoRepository.obter(any()) } returns emptySequence()
+    every { controleViewMapper.from(any()) } returns controleView
 
-    private lateinit var dateTimeProvider: DateTimeProvider
-    private lateinit var censurarUseCase: CensurarUseCase
-    private lateinit var creditoFaturaRepository: CreditoFaturaRepository
-    private lateinit var controleSolicitacaoRepository: ControleSolicitacaoRepository
-    private lateinit var resgateService: ResgateService
-    private lateinit var controleViewMapper: ControleViewMapper
-
-    private lateinit var processarSolicitacaoCreditoFaturaUseCaseImpl: ProcessarSolicitacaoCreditoFaturaUseCaseImpl
-
-    @BeforeEach
-    fun setup() {
-        dateTimeProvider = mockk()
-        censurarUseCase = mockk(relaxed = true)
-        creditoFaturaRepository = mockk(relaxed = true)
-        controleSolicitacaoRepository = mockk(relaxed = true)
-        resgateService = mockk(relaxed = true)
-        controleViewMapper = mockk(relaxed = true)
-
-        processarSolicitacaoCreditoFaturaUseCaseImpl = ProcessarSolicitacaoCreditoFaturaUseCaseImpl(
-            dateTimeProvider,
-            censurarUseCase,
-            creditoFaturaRepository,
-            controleSolicitacaoRepository,
-            resgateService,
-            controleViewMapper
-        )
+    // Act & Assert
+    assertThrows<TechnicalException> {
+        processarSolicitacaoCreditoFaturaUseCaseImpl.execute(participante, observabilidade)
     }
+}
 
-    @Test
-    fun `execute deve processar a solicitacao de credito em fatura com sucesso`() {
-        // Arrange
-        val participante = mockk<Participante>(relaxed = true)
-        val observabilidade = mockk<Observabilidade>(relaxed = true)
-        val autorizacao = mockk<Resgate>(relaxed = true)
-        val confirmacao = mockk<Resgate>(relaxed = true)
-        val controleView = mockk<ControleView>(relaxed = true)
-        val controleInstance = mockk<ControleSolicitacao>(relaxed = true)
+@Test
+fun `execute deve lançar BusinessException quando resgateService autorizar lança BusinessException`() {
+    // Arrange
+    val participante = mockk<Participante>(relaxed = true)
+    val observabilidade = mockk<Observabilidade>(relaxed = true)
+    val controleView = mockk<ControleView>(relaxed = true)
+    val controleInstance = mockk<ControleSolicitacao>(relaxed = true)
+    val businessException = BusinessException("Falha ao autorizar.", AUTORIZACAO_NAO_PROCESSADA)
 
-        every { controleSolicitacaoRepository.obter(any()) } returns sequenceOf(controleInstance)
-        every { controleViewMapper.from(any()) } returns controleView
-        every { dateTimeProvider.instante() } returns Instant.now()
-        every { resgateService.autorizar(any(), any()) } returns autorizacao
-        every { resgateService.confirmar(any(), any(), any()) } returns confirmacao
+    every { controleSolicitacaoRepository.obter(any()) } returns sequenceOf(controleInstance)
+    every { controleViewMapper.from(any()) } returns controleView
+    every { resgateService.autorizar(any(), any()) } throws businessException
 
-        // Act
-        val result = processarSolicitacaoCreditoFaturaUseCaseImpl.execute(participante, observabilidade)
+    // Act & Assert
+    assertThrows<BusinessException> {
+        processarSolicitacaoCreditoFaturaUseCaseImpl.execute(participante, observabilidade)
+    }
+}
 
-        // Assert
-        verify { resgateService.autorizar(participante, observabilidade) }
-        verify { resgateService.confirmar(participante, autorizacao, observabilidade) }
-        verify { creditoFaturaRepository.inserir(any()) }
-        verify { controleSolicitacaoRepository.atualizar(any(), any()) }
-        assertEquals(participante.transferencia.situacaoTransferencia, SituacaoTransferencia.PROCESSADO_OK)
+@Test
+fun `execute deve lançar BusinessException quando resgateService confirmar lança BusinessException`() {
+    // Arrange
+    val participante = mockk<Participante>(relaxed = true)
+    val observabilidade = mockk<Observabilidade>(relaxed = true)
+    val autorizacao = mockk<Resgate>(relaxed = true)
+    val controleView = mockk<ControleView>(relaxed = true)
+    val controleInstance = mockk<ControleSolicitacao>(relaxed = true)
+    val businessException = BusinessException("Falha ao confirmar.", CONFIRMACAO_NAO_PROCESSADA)
+
+    every { controleSolicitacaoRepository.obter(any()) } returns sequenceOf(controleInstance)
+    every { controleViewMapper.from(any()) } returns controleView
+    every { dateTimeProvider.instante() } returns Instant.now()
+    every { resgateService.autorizar(any(), any()) } returns autorizacao
+    every { resgateService.confirmar(any(), any(), any()) } throws businessException
+
+    // Act & Assert
+    assertThrows<BusinessException> {
+        processarSolicitacaoCreditoFaturaUseCaseImpl.execute(participante, observabilidade)
     }
 }
