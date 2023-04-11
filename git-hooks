@@ -3,134 +3,63 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import org.springframework.http.HttpStatus
-import java.util.UUID
+import org.junit.jupiter.api.Assertions.assertEquals
+import java.time.Instant
 
-class ResgateServiceTest {
-    private lateinit var externalResource: ExternalResource
-    private lateinit var resgateProvider: ResgateProvider
-    private lateinit var obterAutorizacaoRequestMapper: ObterAutorizacaoRequestMapper
-    private lateinit var obterAutorizacaoResponseMapper: ObterAutorizacaoResponseMapper
-    private lateinit var confirmacaoResgateRequestMapper: ConfirmacaoResgateRequestMapper
-    private lateinit var confirmacaoResgateResponseMapper: ConfirmacaoResgateResponseMapper
-    private lateinit var awsSecrets: AwsSecrets
-    private lateinit var resgateConfiguration: ResgateConfiguration
+class ProcessarSolicitacaoCreditoFaturaUseCaseImplTest {
+
+    private lateinit var dateTimeProvider: DateTimeProvider
+    private lateinit var censurarUseCase: CensurarUseCase
+    private lateinit var creditoFaturaRepository: CreditoFaturaRepository
+    private lateinit var controleSolicitacaoRepository: ControleSolicitacaoRepository
     private lateinit var resgateService: ResgateService
+    private lateinit var controleViewMapper: ControleViewMapper
+
+    private lateinit var processarSolicitacaoCreditoFaturaUseCaseImpl: ProcessarSolicitacaoCreditoFaturaUseCaseImpl
 
     @BeforeEach
-    fun setUp() {
-        externalResource = mockk(relaxed = true)
-        resgateProvider = mockk()
-        obterAutorizacaoRequestMapper = mockk()
-        obterAutorizacaoResponseMapper = mockk()
-        confirmacaoResgateRequestMapper = mockk()
-        confirmacaoResgateResponseMapper = mockk()
-        awsSecrets = mockk()
-        resgateConfiguration = mockk()
+    fun setup() {
+        dateTimeProvider = mockk()
+        censurarUseCase = mockk(relaxed = true)
+        creditoFaturaRepository = mockk(relaxed = true)
+        controleSolicitacaoRepository = mockk(relaxed = true)
+        resgateService = mockk(relaxed = true)
+        controleViewMapper = mockk(relaxed = true)
 
-        resgateService = ResgateService(
-            externalResource,
-            resgateProvider,
-            obterAutorizacaoRequestMapper,
-            obterAutorizacaoResponseMapper,
-            confirmacaoResgateRequestMapper,
-            confirmacaoResgateResponseMapper,
-            awsSecrets,
-            resgateConfiguration
+        processarSolicitacaoCreditoFaturaUseCaseImpl = ProcessarSolicitacaoCreditoFaturaUseCaseImpl(
+            dateTimeProvider,
+            censurarUseCase,
+            creditoFaturaRepository,
+            controleSolicitacaoRepository,
+            resgateService,
+            controleViewMapper
         )
     }
 
     @Test
-    fun `deve autorizar com sucesso`() {
+    fun `execute deve processar a solicitacao de credito em fatura com sucesso`() {
         // Arrange
-        val participante = Participante(/* preencha com os dados necessários */)
-        val observabilidade = Observabilidade(UUID.randomUUID().toString(), UUID.randomUUID().toString())
-        val autorizacaoRequest = ObterAutorizacaoRequest(/* preencha com os dados necessários */)
-        val autorizacaoResponse = ObterAutorizacaoResponse(/* preencha com os dados necessários */)
-        val resgate = Resgate(/* preencha com os dados necessários */)
+        val participante = mockk<Participante>(relaxed = true)
+        val observabilidade = mockk<Observabilidade>(relaxed = true)
+        val autorizacao = mockk<Resgate>(relaxed = true)
+        val confirmacao = mockk<Resgate>(relaxed = true)
+        val controleView = mockk<ControleView>(relaxed = true)
+        val controleInstance = mockk<ControleSolicitacao>(relaxed = true)
 
-        every { awsSecrets.get().client_id } returns "clientId"
-        every { obterAutorizacaoRequestMapper.from(participante) } returns autorizacaoRequest
-        every { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) } returns autorizacaoResponse
-        every { obterAutorizacaoResponseMapper.from(autorizacaoResponse, participante) } returns resgate
+        every { controleSolicitacaoRepository.obter(any()) } returns sequenceOf(controleInstance)
+        every { controleViewMapper.from(any()) } returns controleView
+        every { dateTimeProvider.instante() } returns Instant.now()
+        every { resgateService.autorizar(any(), any()) } returns autorizacao
+        every { resgateService.confirmar(any(), any(), any()) } returns confirmacao
 
         // Act
-        val result = resgateService.autorizar(participante, observabilidade)
+        val result = processarSolicitacaoCreditoFaturaUseCaseImpl.execute(participante, observabilidade)
 
         // Assert
-        assertEquals(resgate, result)
-        verify { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) }
+        verify { resgateService.autorizar(participante, observabilidade) }
+        verify { resgateService.confirmar(participante, autorizacao, observabilidade) }
+        verify { creditoFaturaRepository.inserir(any()) }
+        verify { controleSolicitacaoRepository.atualizar(any(), any()) }
+        assertEquals(participante.transferencia.situacaoTransferencia, SituacaoTransferencia.PROCESSADO_OK)
     }
-
-    @Test
-    fun `deve lançar BusinessException quando participante não encontrado`() {
-        // Arrange
-        val participante = Participante(/* preencha com os dados necessários */)
-        val observabilidade = Observabilidade(UUID.randomUUID().toString(), UUID.randomUUID().toString())
-        val autorizacaoRequest = ObterAutorizacaoRequest(/* preencha com os dados necessários */)
-        val responseException = HttpClientResponseException(
-            "Participante não encontrado.",
-            HttpResponse.badRequest<Any>().status(HttpStatus.UNPROCESSABLE_ENTITY))
-            
-     every { awsSecrets.get().client_id } returns "clientId"
-    every { obterAutorizacaoRequestMapper.from(participante) } returns autorizacaoRequest
-    every { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) } throws responseException
-
-    // Act & Assert
-    val exception = assertThrows<BusinessException> {
-        resgateService.autorizar(participante, observabilidade)
-    }
-
-    assertEquals(PARTICIPANTE_NAO_ENCONTRADO, exception.code)
-    verify { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) }
 }
-
-@Test
-fun `deve lançar BusinessException quando autorizacao nao processada`() {
-    // Arrange
-    val participante = Participante(/* preencha com os dados necessários */)
-    val observabilidade = Observabilidade(UUID.randomUUID().toString(), UUID.randomUUID().toString())
-    val autorizacaoRequest = ObterAutorizacaoRequest(/* preencha com os dados necessários */)
-    val responseException = HttpClientResponseException(
-        "Falha ao autorizar.",
-        HttpResponse.badRequest<Any>().status(HttpStatus.UNPROCESSABLE_ENTITY)
-    )
-
-    every { awsSecrets.get().client_id } returns "clientId"
-    every { obterAutorizacaoRequestMapper.from(participante) } returns autorizacaoRequest
-    every { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) } throws responseException
-
-    // Act & Assert
-    val exception = assertThrows<BusinessException> {
-        resgateService.autorizar(participante, observabilidade)
-    }
-
-    assertEquals(AUTORIZACAO_NAO_PROCESSADA, exception.code)
-    verify { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) }
-}
-
-@Test
-fun `deve lançar BusinessException quando pedido duplicado`() {
-    // Arrange
-    val participante = Participante(/* preencha com os dados necessários */)
-    val observabilidade = Observabilidade(UUID.randomUUID().toString(), UUID.randomUUID().toString())
-    val autorizacaoRequest = ObterAutorizacaoRequest(/* preencha com os dados necessários */)
-    val responseException = HttpClientResponseException(
-        "Pedido Duplicado.",
-        HttpResponse.badRequest<Any>().status(HttpStatus.CONFLICT)
-    )
-
-    every { awsSecrets.get().client_id } returns "clientId"
-    every { obterAutorizacaoRequestMapper.from(participante) } returns autorizacaoRequest
-    every { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) } throws responseException
-
-    // Act & Assert
-    val exception = assertThrows<BusinessException> {
-        resgateService.autorizar(participante, observabilidade)
-    }
-
-    assertEquals(PEDIDO_DUPLICADO, exception.code)
-    verify { resgateProvider.obterAutorizacao(any(), any(), any(), any(), any(), any()) }
-}
-            
