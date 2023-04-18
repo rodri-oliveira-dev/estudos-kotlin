@@ -1,56 +1,55 @@
-@Test
-fun `execute deve lançar TechnicalException quando controleSolicitacaoRepository obter retorna lista vazia`() {
-    // Arrange
-    val participante = mockk<Participante>(relaxed = true)
-    val observabilidade = mockk<Observabilidade>(relaxed = true)
-    val controleView = mockk<ControleView>(relaxed = true)
+#!/bin/bash
 
-    every { controleSolicitacaoRepository.obter(any()) } returns emptySequence()
-    every { controleViewMapper.from(any()) } returns controleView
+# Armazene a branch base (develop)
+BASE_BRANCH="develop"
 
-    // Act & Assert
-    assertThrows<TechnicalException> {
-        processarSolicitacaoCreditoFaturaUseCaseImpl.execute(participante, observabilidade)
-    }
+# Obtenha o hash do commit atual (HEAD) e do último commit em develop
+CURRENT_COMMIT=$(git rev-parse HEAD)
+DEVELOP_COMMIT=$(git rev-parse $BASE_BRANCH)
+
+# Encontre os arquivos modificados entre os commits
+CHANGED_FILES=$(git diff --name-only $DEVELOP_COMMIT $CURRENT_COMMIT)
+
+# Inicialize variáveis para as pastas
+FOLDER_A_CHANGED=false
+FOLDER_B_CHANGED=false
+FOLDER_C_CHANGED=false
+
+# Verifique se os arquivos modificados estão em alguma das pastas
+for file in $CHANGED_FILES; do
+    if [[ $file == pasta-a/* ]]; then
+        FOLDER_A_CHANGED=true
+    elif [[ $file == pasta-b/* ]]; then
+        FOLDER_B_CHANGED=true
+    elif [[ $file == pasta-c/* ]]; then
+        FOLDER_C_CHANGED=true
+    fi
+done
+
+# Função para verificar a versão no arquivo registro.kts
+check_version() {
+    FOLDER_NAME=$1
+    REGISTRO_FILE="raiz/pasta-0/registro.kts"
+    LINE_CURRENT=$(grep $FOLDER_NAME $REGISTRO_FILE)
+    LINE_DEVELOP=$(git show $DEVELOP_COMMIT:$REGISTRO_FILE | grep $FOLDER_NAME)
+
+    if [[ "$LINE_CURRENT" == "$LINE_DEVELOP" ]]; then
+        echo "Atualize a versão de $FOLDER_NAME no arquivo $REGISTRO_FILE e tente novamente."
+        exit 1
+    fi
 }
 
-@Test
-fun `execute deve lançar BusinessException quando resgateService autorizar lança BusinessException`() {
-    // Arrange
-    val participante = mockk<Participante>(relaxed = true)
-    val observabilidade = mockk<Observabilidade>(relaxed = true)
-    val controleView = mockk<ControleView>(relaxed = true)
-    val controleInstance = mockk<ControleSolicitacao>(relaxed = true)
-    val businessException = BusinessException("Falha ao autorizar.", AUTORIZACAO_NAO_PROCESSADA)
+# Verifique a versão no arquivo registro.kts para cada pasta modificada
+if [ "$FOLDER_A_CHANGED" = true ]; then
+    check_version "pasta-a"
+fi
 
-    every { controleSolicitacaoRepository.obter(any()) } returns sequenceOf(controleInstance)
-    every { controleViewMapper.from(any()) } returns controleView
-    every { resgateService.autorizar(any(), any()) } throws businessException
+if [ "$FOLDER_B_CHANGED" = true ]; then
+    check_version "pasta-b"
+fi
 
-    // Act & Assert
-    assertThrows<BusinessException> {
-        processarSolicitacaoCreditoFaturaUseCaseImpl.execute(participante, observabilidade)
-    }
-}
+if [ "$FOLDER_C_CHANGED" = true ]; then
+    check_version "pasta-c"
+fi
 
-@Test
-fun `execute deve lançar BusinessException quando resgateService confirmar lança BusinessException`() {
-    // Arrange
-    val participante = mockk<Participante>(relaxed = true)
-    val observabilidade = mockk<Observabilidade>(relaxed = true)
-    val autorizacao = mockk<Resgate>(relaxed = true)
-    val controleView = mockk<ControleView>(relaxed = true)
-    val controleInstance = mockk<ControleSolicitacao>(relaxed = true)
-    val businessException = BusinessException("Falha ao confirmar.", CONFIRMACAO_NAO_PROCESSADA)
-
-    every { controleSolicitacaoRepository.obter(any()) } returns sequenceOf(controleInstance)
-    every { controleViewMapper.from(any()) } returns controleView
-    every { dateTimeProvider.instante() } returns Instant.now()
-    every { resgateService.autorizar(any(), any()) } returns autorizacao
-    every { resgateService.confirmar(any(), any(), any()) } throws businessException
-
-    // Act & Assert
-    assertThrows<BusinessException> {
-        processarSolicitacaoCreditoFaturaUseCaseImpl.execute(participante, observabilidade)
-    }
-}
+echo "Push permitido."
