@@ -1,55 +1,17 @@
-#!/bin/bash
-
-# Armazene a branch base (develop)
-BASE_BRANCH="develop"
-
-# Obtenha o hash do commit atual (HEAD) e do último commit em develop
-CURRENT_COMMIT=$(git rev-parse HEAD)
-DEVELOP_COMMIT=$(git rev-parse $BASE_BRANCH)
-
-# Encontre os arquivos modificados entre os commits
-CHANGED_FILES=$(git diff --name-only $DEVELOP_COMMIT $CURRENT_COMMIT)
-
-# Inicialize variáveis para as pastas
-FOLDER_A_CHANGED=false
-FOLDER_B_CHANGED=false
-FOLDER_C_CHANGED=false
-
-# Verifique se os arquivos modificados estão em alguma das pastas
-for file in $CHANGED_FILES; do
-    if [[ $file == pasta-a/* ]]; then
-        FOLDER_A_CHANGED=true
-    elif [[ $file == pasta-b/* ]]; then
-        FOLDER_B_CHANGED=true
-    elif [[ $file == pasta-c/* ]]; then
-        FOLDER_C_CHANGED=true
-    fi
-done
-
-# Função para verificar a versão no arquivo registro.kts
-check_version() {
-    FOLDER_NAME=$1
-    REGISTRO_FILE="raiz/pasta-0/registro.kts"
-    LINE_CURRENT=$(grep $FOLDER_NAME $REGISTRO_FILE)
-    LINE_DEVELOP=$(git show $DEVELOP_COMMIT:$REGISTRO_FILE | grep $FOLDER_NAME)
-
-    if [[ "$LINE_CURRENT" == "$LINE_DEVELOP" ]]; then
-        echo "Atualize a versão de $FOLDER_NAME no arquivo $REGISTRO_FILE e tente novamente."
-        exit 1
-    fi
+plugins {
+    kotlin("jvm") version "1.5.21"
+    id("org.sonarqube") version "3.3"
 }
 
-# Verifique a versão no arquivo registro.kts para cada pasta modificada
-if [ "$FOLDER_A_CHANGED" = true ]; then
-    check_version "pasta-a"
-fi
-
-if [ "$FOLDER_B_CHANGED" = true ]; then
-    check_version "pasta-b"
-fi
-
-if [ "$FOLDER_C_CHANGED" = true ]; then
-    check_version "pasta-c"
-fi
-
-echo "Push permitido."
+sonarqube {
+    properties {
+        property("sonar.projectName", "Nome do Subprojeto")
+        property("sonar.projectKey", "projeto-principal:subprojeto")
+        property("sonar.sources", "src/main/kotlin")
+        property("sonar.tests", "src/test/kotlin")
+        property("sonar.junit.reportPaths", "build/test-results/test")
+        property("sonar.jacoco.reportPaths", "build/jacoco/test.exec")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
+        // Adicione outras propriedades do SonarQube, se necessário
+    }
+}
