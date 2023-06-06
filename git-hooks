@@ -7,7 +7,7 @@ val httpClient = ApacheHttpClient.builder()
     .proxyConfiguration(proxyConfiguration)
     .build()
 
-val client = SqsClient.builder()
+val stsClient = StsClient.builder()
     .region(Region.US_EAST_1)
     .httpClient(httpClient)
     .build()
