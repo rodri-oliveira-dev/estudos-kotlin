@@ -1,17 +1,24 @@
-plugins {
-    kotlin("jvm") version "1.5.21"
-    id("org.sonarqube") version "3.3"
-}
+import software.amazon.awssdk.services.sqs.SqsClient
+import software.amazon.awssdk.services.sts.StsClient
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
 
-sonarqube {
-    properties {
-        property("sonar.projectName", "Nome do Subprojeto")
-        property("sonar.projectKey", "projeto-principal:subprojeto")
-        property("sonar.sources", "src/main/kotlin")
-        property("sonar.tests", "src/test/kotlin")
-        property("sonar.junit.reportPaths", "build/test-results/test")
-        property("sonar.jacoco.reportPaths", "build/jacoco/test.exec")
-        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
-        // Adicione outras propriedades do SonarQube, se necessário
+class SendNewNegocioTest {
+    private val sqsClient: SqsClient
+
+    init {
+        val stsClient = StsClient.create()
+
+        val assumeRoleRequest = AssumeRoleRequest.builder()
+            .roleArn("arn:aws:iam::681943174786:role/DevOpsRole")
+            .roleSessionName("newsession")
+            .build()
+
+        val stsCredentials = stsClient.assumeRole(assumeRoleRequest).credentials()
+        
+        sqsClient = SqsClient.builder()
+            .credentialsProvider { stsCredentials }
+            .build()
+
+        // sqsClient = SqsClient.builder().region(Region.SA_EAST_1).build()
     }
 }
