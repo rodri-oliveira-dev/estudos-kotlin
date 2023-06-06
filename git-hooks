@@ -1,24 +1,42 @@
 import software.amazon.awssdk.services.sqs.SqsClient
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import software.amazon.awssdk.services.sts.StsClient
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
 
-class SendNewNegocioTest {
-    private val sqsClient: SqsClient
+fun main() {
+    // Substitute these values with your own.
+    val roleArnToAssume = "arn:aws:iam::123456789012:role/my-role"
+    val sqsQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/my-queue"
+    val roleSessionName = "my-role-session"
 
-    init {
-        val stsClient = StsClient.create()
+    // Assume the role.
+    val stsClient = StsClient.create()
+    val assumeRoleRequest = AssumeRoleRequest.builder()
+        .roleArn(roleArnToAssume)
+        .roleSessionName(roleSessionName)
+        .build()
+    val assumeRoleResponse = stsClient.assumeRole(assumeRoleRequest)
 
-        val assumeRoleRequest = AssumeRoleRequest.builder()
-            .roleArn("arn:aws:iam::681943174786:role/DevOpsRole")
-            .roleSessionName("newsession")
-            .build()
+    // Use the temporary security credentials returned by the AssumeRole request to authenticate the AmazonSQSClient.
+    val sqsClient = SqsClient.builder()
+        .region(Region.US_EAST_1)
+        .credentialsProvider(
+            StaticCredentialsProvider.create(
+                AwsSessionCredentials.create(
+                    assumeRoleResponse.credentials().accessKeyId(),
+                    assumeRoleResponse.credentials().secretAccessKey(),
+                    assumeRoleResponse.credentials().sessionToken()
+                )
+            )
+        )
+        .build()
 
-        val stsCredentials = stsClient.assumeRole(assumeRoleRequest).credentials()
-        
-        sqsClient = SqsClient.builder()
-            .credentialsProvider { stsCredentials }
-            .build()
+    // Send a message.
+    val sendMessageRequest = SendMessageRequest.builder()
+        .queueUrl(sqsQueueUrl)
+        .messageBody("Hello, World!")
+        .build()
+    val sendMessageResponse = sqsClient.sendMessage(sendMessageRequest)
 
-        // sqsClient = SqsClient.builder().region(Region.SA_EAST_1).build()
-    }
+    println("Message sent with ID: ${sendMessageResponse.messageId()}")
 }
